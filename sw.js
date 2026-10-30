@@ -1,5 +1,5 @@
 /* 反拖延行动手册 · 离线缓存 */
-const CACHE = 'fanzhichi-v1';
+const CACHE = 'fanzhichi-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
