@@ -1,6 +1,6 @@
 /* 反拖延行动手册 · 离线缓存 */
-const CACHE = 'fanzhichi-v2';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
+const CACHE = 'fanzhichi-v3';
+const ASSETS = ['./fanzhichi-app.xhtml', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -25,6 +25,6 @@ self.addEventListener('fetch', event => {
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return res;
       })
-      .catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
+      .catch(() => caches.match(req).then(hit => hit || caches.match('./fanzhichi-app.xhtml')))
   );
 });
