@@ -3,7 +3,7 @@
   "short_name": "反拖延",
   "description": "每日任务双列排序、方法论流程提醒、可自定义的番茄钟与持久铃声。",
   "lang": "zh-CN",
-  "start_url": "./index.html",
+  "start_url": "./fanzhichi-app.xhtml",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
