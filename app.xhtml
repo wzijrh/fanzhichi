@@ -14,6 +14,7 @@
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png"/>
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+<meta name="app-version" content="4.0.1"/>
 <title>反拖延行动手册</title>
 
 <style><![CDATA[
@@ -586,6 +587,13 @@ input{-webkit-appearance:none;appearance:none}
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
   }
+  /* XML 文档（XHTML）里直接 innerHTML 对片段要求严格，这里统一用 HTML 文档解析后再导入，Safari 更稳 */
+  const htmlDoc = document.implementation.createHTMLDocument('');
+  function setHTML(el, html) {
+    htmlDoc.body.innerHTML = html;
+    const nodes = Array.prototype.map.call(htmlDoc.body.childNodes, n => document.importNode(n, true));
+    el.replaceChildren.apply(el, nodes);
+  }
 
   /* ================= 状态 ================= */
   const KEY = 'ap4_state_v2';
@@ -860,8 +868,8 @@ input{-webkit-appearance:none;appearance:none}
         '</li>';
       }).join('');
     };
-    $('#listImp').innerHTML = build('impOrder');
-    $('#listTime').innerHTML = build('timeOrder');
+    setHTML($('#listImp'), build('impOrder'));
+    setHTML($('#listTime'), build('timeOrder'));
   }
 
   function toggleTask(id) {
@@ -947,7 +955,7 @@ input{-webkit-appearance:none;appearance:none}
   function renderMethods() {
     $$('#methodSeg button').forEach(b => b.classList.toggle('on', b.dataset.cat === S.ui.cat));
     const flows = currentFlows();
-    $('#flowList').innerHTML = flows.map(f => {
+    setHTML($('#flowList'), flows.map(f => {
       const marks = Array.isArray(S.methods[f.id]) ? S.methods[f.id] : [];
       const n = f.steps.reduce((a, _, i) => a + (marks[i] ? 1 : 0), 0);
       const pct = Math.round(n / f.steps.length * 100);
@@ -966,7 +974,7 @@ input{-webkit-appearance:none;appearance:none}
           '<button class="reset" data-reset="' + f.id + '">重置</button>' +
         '</div>' +
       '</section>';
-    }).join('');
+    }).join(''));
     updateTip();
   }
   function updateTip() {
@@ -1154,10 +1162,10 @@ input{-webkit-appearance:none;appearance:none}
   }
   function renderPresets() {
     const list = [[25, 5], [45, 10], [50, 10], [90, 20], [15, 3]];
-    $('#presetRow').innerHTML = list.map(p =>
+    setHTML($('#presetRow'), list.map(p =>
       '<button data-study="' + p[0] + '" data-rest="' + p[1] + '" class="' +
       (S.timer.study === p[0] && S.timer.rest === p[1] ? 'on' : '') + '">' + p[0] + ' / ' + p[1] + '</button>'
-    ).join('');
+    ).join(''));
   }
 
   /* ================= 打卡 ================= */
@@ -1200,9 +1208,9 @@ input{-webkit-appearance:none;appearance:none}
     const c = checkOf(key);
     const total = checkCount(key);
     $('#todayLabel').textContent = '今日 ' + total + ' 个' + (total > CELLS ? '（目标已达成）' : '');
-    $('#cells').innerHTML = c.cells.map((v, i) =>
+    setHTML($('#cells'), c.cells.map((v, i) =>
       '<button class="cell' + (v ? ' on' : '') + '" data-cell="' + i + '" aria-label="第' + (i + 1) + '个打卡">' + (v ? '🍅' : '') + '</button>'
-    ).join('');
+    ).join(''));
     $('#streak').textContent = streakDays();
 
     const days = [];
@@ -1212,11 +1220,11 @@ input{-webkit-appearance:none;appearance:none}
       days.push({ d: d, n: checkCount(dayKey(d)) });
     }
     const maxN = Math.max(CELLS, ...days.map(x => x.n));
-    $('#weekBars').innerHTML = days.map(x => {
+    setHTML($('#weekBars'), days.map(x => {
       const h = Math.round((x.n / maxN) * 40) + 3;
       const wd = ['日', '一', '二', '三', '四', '五', '六'][x.d.getDay()];
       return '<div class="wcol"><span class="wn">' + (x.n || '') + '</span><div class="bar' + (x.n ? ' on' : '') + '" style="height:' + h + 'px"></div><span class="wl">' + wd + '</span></div>';
-    }).join('');
+    }).join(''));
     save();
   }
 
