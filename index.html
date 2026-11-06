@@ -13,6 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="app-version" content="4.0.1">
 <title>反拖延行动手册</title>
 <style>
 :root{
@@ -80,6 +81,19 @@ input{-webkit-appearance:none;appearance:none}
 .col-head .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
 .col-time .col-head .dot{background:var(--blue)}
 .col-head .cnt{font-size:10.5px;color:var(--sub)}
+.col-tools{display:flex;align-items:center;gap:5px;flex:none}
+.col-add{
+  flex:none;width:26px;height:24px;border-radius:8px;border:1px solid var(--warm-line);
+  background:var(--warm);color:var(--accent-ink);font-size:15px;font-weight:800;line-height:1;
+  display:flex;align-items:center;justify-content:center;padding:0
+}
+.col-add:active{background:var(--warm-line)}
+.tnote{
+  font-size:10.8px;line-height:1.45;color:var(--sub);margin-top:4px;
+  background:var(--soft);border-radius:7px;padding:4px 6px;word-break:break-word;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden
+}
+.cols.mode-imp .col-imp .tnote,.cols.mode-time .col-time .tnote{font-size:12px;-webkit-line-clamp:4}
 .tlist{list-style:none;margin:0;padding:0}
 .trow{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"text text text" "check . move";gap:5px 6px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
 .trow:last-child{border-bottom:0}
@@ -266,11 +280,18 @@ input{-webkit-appearance:none;appearance:none}
 .sheet .sub{font-size:11.5px;color:var(--sub);margin-bottom:14px}
 .field{margin:12px 0}
 .field label{display:block;font-size:12px;color:var(--sub);font-weight:600;margin-bottom:5px}
-.field input{
+.field input,.field textarea{
   width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);
   background:var(--soft);font-size:16px;outline:none
 }
-.field input:focus{border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:62px;line-height:1.5;font-family:inherit}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.date-row{display:flex;gap:10px}
+.date-row .field{flex:1;min-width:0}
+.date-row input{width:100%}
+.colpick{display:flex;gap:16px;padding:6px 2px}
+.colpick label{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink)}
+.colpick input{width:18px;height:18px;padding:0;border:0;background:none;accent-color:var(--accent)}
 .sheet-btns{display:flex;gap:9px;margin-top:18px}
 .sheet-btns button{flex:1;padding:13px;border-radius:13px;font-size:15px;font-weight:700}
 .sheet-btns .save{background:var(--accent);color:#fff}
@@ -298,7 +319,7 @@ input{-webkit-appearance:none;appearance:none}
 .ring-overlay .ico{font-size:64px;line-height:1;animation:swing 1s ease-in-out infinite;position:relative}
 @keyframes swing{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
 .ring-overlay .rtitle{font-size:30px;font-weight:900;letter-spacing:2px;margin-top:18px;position:relative}
-.ring-overlay .rsub{font-size:15px;color:#e7e5e4;margin-top:8px;line-height:1.6;position:relative;max-width:320px}
+.ring-overlay .rsub{font-size:15px;color:#e7e5e4;margin-top:8px;line-height:1.6;position:relative;max-width:320px;white-space:pre-line}
 .ring-overlay .rtip{font-size:12px;color:#a8a29e;margin-top:6px;position:relative}
 .ring-overlay .racts{display:flex;flex-direction:column;gap:10px;width:100%;max-width:300px;margin-top:30px;position:relative}
 .ring-overlay .racts button{padding:15px;border-radius:14px;font-size:16px;font-weight:800}
@@ -330,7 +351,7 @@ input{-webkit-appearance:none;appearance:none}
     </div>
     <button class="link-btn" id="manageBtn">整理</button>
   </div>
-  <p class="head-sub">两列独立排序：左列按重要程度，右列按时间先后。顺序只由你手动调整，全部自动保存。</p>
+  <p class="head-sub">两列各自独立：在左列添加只会进左列，在右列添加只会进右列。顺序由你手动调，全部自动保存。</p>
 
   <div class="mode-row">
     <div class="seg" id="modeSeg">
@@ -347,17 +368,22 @@ input{-webkit-appearance:none;appearance:none}
 
   <div class="cols" id="cols">
     <section class="col col-imp">
-      <div class="col-head"><h3><span class="dot"></span>重要程度</h3><span class="cnt" id="impCnt">0 件</span></div>
+      <div class="col-head">
+        <h3><span class="dot"></span>重要程度</h3>
+        <div class="col-tools"><span class="cnt" id="impCnt">0 件</span><button class="col-add" data-add-col="imp" aria-label="在重要程度中添加任务">＋</button></div>
+      </div>
       <ul class="tlist" id="listImp"></ul>
     </section>
     <section class="col col-time">
-      <div class="col-head"><h3><span class="dot"></span>时间顺序</h3><span class="cnt" id="timeCnt">0 件</span></div>
+      <div class="col-head">
+        <h3><span class="dot"></span>时间顺序</h3>
+        <div class="col-tools"><span class="cnt" id="timeCnt">0 件</span><button class="col-add" data-add-col="time" aria-label="在时间顺序中添加任务">＋</button></div>
+      </div>
       <ul class="tlist" id="listTime"></ul>
     </section>
   </div>
 
-  <button class="add-btn" id="addTaskBtn">＋ 添加任务</button>
-  <p class="hint">任务永久保存，不会在每天 24:00 自动清空。点文字可编辑；▲▼ 上下调换位置；点列标题可以放大这一列。</p>
+  <p class="hint">任务永久保存，不会在每天 24:00 自动清空。每列右上角 ＋ 只添加到这一列；点任务可编辑内容、备注、日期时间；▲▼ 上下调换位置；点列标题可以放大这一列。</p>
 </main>
 
 <!-- ================= 方法论 ================= -->
@@ -384,7 +410,7 @@ input{-webkit-appearance:none;appearance:none}
   </div>
 
   <div id="flowList"></div>
-  <p class="method-note">每条方法论都是可以照着做的流程：点一下方框记录完成，做完一条算学会一条。<br>勾选状态自动保存，随时可以重置重来。</p>
+  <p class="method-note">每条方法论都是可以照着做的流程：点击一下方框记录完成，做完一条算学会一条。<br/>勾选状态自动保存，随时可以重置重来。</p>
 </main>
 
 <!-- ================= 番茄钟 ================= -->
@@ -465,8 +491,12 @@ input{-webkit-appearance:none;appearance:none}
         <input type="number" id="setRingMax" min="0" max="60" step="1" inputmode="numeric">
       </div>
       <div class="set-row">
-        <div class="lab">任务到点提醒<small>任务设了时间，到点响铃（页面需打开）</small></div>
+        <div class="lab">任务到点提醒<small>任务设了日期和时间，到点响铃（页面需打开）</small></div>
         <button class="sw" id="setTaskAlarm" aria-label="任务到点提醒开关"></button>
+      </div>
+      <div class="set-row">
+        <div class="lab">后台 / 黑屏响铃<small>锁屏或切到后台也尽量让番茄钟铃声响起（iPhone 实验性，需保持页面在后台）</small></div>
+        <button class="sw" id="setBgRing" aria-label="后台黑屏响铃开关"></button>
       </div>
       <div class="set-row">
         <div class="lab">保持屏幕常亮<small>计时中防止 iPhone 自动锁屏</small></div>
@@ -480,7 +510,7 @@ input{-webkit-appearance:none;appearance:none}
         <button class="play" id="testRingBtn">▶ 试听铃声</button>
         <button class="stop" id="testStopBtn">停止</button>
       </div>
-      <p class="hint" style="text-align:left;margin:10px 0 0">铃声只发声、不震动。已启用 iPhone 媒体通道（首次触摸后生效）：静音键打开也能听到；戴耳机时铃声只进入你的耳机。锁屏时网页会被系统暂停，计时请让页面留在前台。</p>
+      <p class="hint" style="text-align:left;margin:10px 0 0">铃声只发声、不震动。已启用 iPhone 媒体通道（首次触摸后生效）：静音键打开也能听到；戴耳机时铃声只进入你的耳机。开启「后台 / 黑屏响铃」后，计时结束的铃声会提前排入系统音频，锁屏也可能响（取决于 iOS 是否允许后台音频）。</p>
       <div class="set-btns">
         <button id="exportBtn">导出备份</button>
         <button id="importBtn">导入备份</button>
@@ -490,7 +520,7 @@ input{-webkit-appearance:none;appearance:none}
     </div>
   </details>
 
-  <p class="hint">提醒依赖浏览器页面运行：锁屏或关闭页面时 iPhone 会暂停网页，建议计时时把页面留在前台。</p>
+  <p class="hint">任务提醒依赖页面打开；番茄钟开启「后台 / 黑屏响铃」后，锁屏也可能响（iOS 实验性，部分机型仍会被系统暂停）。</p>
 </main>
 
 <!-- ================= 底部导航 ================= -->
@@ -513,15 +543,33 @@ input{-webkit-appearance:none;appearance:none}
 <div class="sheet-mask" id="sheetMask"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true">
   <h2 id="sheetTitle">编辑任务</h2>
-  <div class="sub">任务不会在 24:00 自动清空；时间只是标记，排序仍由你手动决定。</div>
+  <div class="sub" id="sheetSub">任务不会在 24:00 自动清空；排序仍由你手动决定。</div>
   <div class="field">
     <label for="taskText">任务内容</label>
     <input id="taskText" type="text" maxlength="120" placeholder="例：写论文引言 3 句" autocomplete="off">
   </div>
   <div class="field">
-    <label for="taskTime">时间（可选，用于到点提醒）</label>
-    <input id="taskTime" type="time">
+    <label for="taskNote">备注（可选）</label>
+    <textarea id="taskNote" maxlength="300" rows="2" placeholder="补充说明、链接、要点…"></textarea>
   </div>
+  <div class="date-row">
+    <div class="field">
+      <label for="taskDate">日期（可选）</label>
+      <input id="taskDate" type="date">
+    </div>
+    <div class="field">
+      <label for="taskTime">时间（可选）</label>
+      <input id="taskTime" type="time">
+    </div>
+  </div>
+  <div class="field">
+    <label>放进哪一列（可多选）</label>
+    <div class="colpick">
+      <label><input type="checkbox" id="inImp"> 重要程度</label>
+      <label><input type="checkbox" id="inTime"> 时间顺序</label>
+    </div>
+  </div>
+  <div class="sub" style="margin:-2px 0 0">同时填了日期和时间，到点会响铃提醒（页面保持打开时）。</div>
   <div class="sheet-btns">
     <button class="cancel" id="taskCancel">取消</button>
     <button class="del hide" id="taskDelete">删除</button>
@@ -582,12 +630,19 @@ input{-webkit-appearance:none;appearance:none}
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
   }
+  /* XML 文档（XHTML）里直接 innerHTML 对片段要求严格，这里统一用 HTML 文档解析后再导入，Safari 更稳 */
+  const htmlDoc = document.implementation.createHTMLDocument('');
+  function setHTML(el, html) {
+    htmlDoc.body.innerHTML = html;
+    const nodes = Array.prototype.map.call(htmlDoc.body.childNodes, n => document.importNode(n, true));
+    el.replaceChildren.apply(el, nodes);
+  }
 
   /* ================= 状态 ================= */
   const KEY = 'ap4_state_v2';
   const CELLS = 12;
   const DEFAULT_STATE = () => ({
-    v: 2,
+    v: 3,
     tasks: [],
     impOrder: [],
     timeOrder: [],
@@ -602,7 +657,7 @@ input{-webkit-appearance:none;appearance:none}
     ui: { mode: 'both', cat: 'learn', view: 'tasks', tipIndex: 0 },
     settings: {
       ring: true, tone: 'bell', volume: 0.9, ringMax: 10,
-      taskAlarm: true, wakeLock: true, keepAlive: true
+      taskAlarm: true, backgroundRing: true, wakeLock: true, keepAlive: true
     }
   });
 
@@ -619,6 +674,8 @@ input{-webkit-appearance:none;appearance:none}
       d.tasks = o.tasks.filter(t => t && t.id).map(t => ({
         id: String(t.id),
         text: String(t.text || ''),
+        note: typeof t.note === 'string' ? t.note : '',
+        date: typeof t.date === 'string' ? t.date : '',
         time: typeof t.time === 'string' ? t.time : '',
         done: !!t.done,
         created: Number(t.created) || nowMs()
@@ -634,11 +691,12 @@ input{-webkit-appearance:none;appearance:none}
     if (Array.isArray(o.timeOrder)) d.timeOrder = o.timeOrder.map(String);
 
     const ids = d.tasks.map(t => t.id);
-    d.impOrder = d.impOrder.filter(id => ids.indexOf(id) >= 0);
-    d.timeOrder = d.timeOrder.filter(id => ids.indexOf(id) >= 0);
+    const uniq = arr => arr.filter((id, i) => arr.indexOf(id) === i && ids.indexOf(id) >= 0);
+    d.impOrder = uniq(d.impOrder);
+    d.timeOrder = uniq(d.timeOrder);
+    /* 老数据两列都有任务：保持两边都在；新数据只在对应列。若两边都没有，归到重要程度。 */
     ids.forEach(id => {
-      if (d.impOrder.indexOf(id) < 0) d.impOrder.push(id);
-      if (d.timeOrder.indexOf(id) < 0) d.timeOrder.push(id);
+      if (d.impOrder.indexOf(id) < 0 && d.timeOrder.indexOf(id) < 0) d.impOrder.push(id);
     });
     return d;
   }
@@ -825,39 +883,51 @@ input{-webkit-appearance:none;appearance:none}
 
   /* ================= 每日任务 ================= */
   function findTask(id) { return S.tasks.find(t => t.id === id); }
+  function fmtTaskWhen(t) {
+    if (!t.time) return '';
+    if (!t.date) return t.time;
+    return (t.date === dayKey() ? '今天' : t.date.slice(5).replace('-', '/')) + ' ' + t.time;
+  }
   function renderTasks() {
-    const total = S.tasks.length;
-    const done = S.tasks.filter(t => t.done).length;
+    const union = S.impOrder.concat(S.timeOrder).filter((id, i, a) => a.indexOf(id) === i);
+    const allTasks = union.map(findTask).filter(Boolean);
+    const total = allTasks.length;
+    const done = allTasks.filter(t => t.done).length;
     $('#doneCount').textContent = done;
     $('#totalCount').textContent = total;
     $('#undoneCount').textContent = '未完成 ' + (total - done) + ' 件';
-    $('#impCnt').textContent = total + ' 件';
-    $('#timeCnt').textContent = total + ' 件';
+    $('#impCnt').textContent = S.impOrder.length + ' 件';
+    $('#timeCnt').textContent = S.timeOrder.length + ' 件';
 
     const build = orderName => {
       const order = S[orderName];
-      if (!order.length) return '<li class="empty">还没有任务<br>点下面「添加任务」</li>';
+      if (!order.length) return '<li class="empty">还没有任务<br/>点右上角 ＋ 添加到这一列</li>';
       return order.map((id, i) => {
         const t = findTask(id);
         if (!t) return '';
-        const meta = orderName === 'impOrder'
-          ? '<span class="badge">第 ' + (i + 1) + ' 位</span>'
-          : (t.time ? '<span class="badge">' + esc(t.time) + '</span>' : '<span class="badge">未设时间</span>');
+        const when = fmtTaskWhen(t);
+        const badges = [];
+        if (orderName === 'impOrder') badges.push('<span class="badge">第 ' + (i + 1) + ' 位</span>');
+        if (when) badges.push('<span class="badge">' + esc(when) + '</span>');
+        else if (orderName === 'timeOrder') badges.push('<span class="badge">未设时间</span>');
+        if (t.done) badges.push('<span class="badge">已完成</span>');
+        const note = t.note ? '<div class="tnote">📝 ' + esc(t.note) + '</div>' : '';
         return '<li class="trow' + (t.done ? ' done' : '') + '" data-id="' + esc(t.id) + '" data-col="' + orderName + '">' +
           '<button class="tcheck' + (t.done ? ' on' : '') + '" data-act="toggle" aria-label="标记完成">✓</button>' +
           '<div class="tmain" data-act="edit">' +
             '<div class="ttxt">' + esc(t.text || '（未填写）') + '</div>' +
-            '<div class="tmeta">' + meta + (t.done ? '<span class="badge">已完成</span>' : '') + '</div>' +
+            note +
+            '<div class="tmeta">' + badges.join('') + '</div>' +
           '</div>' +
           '<div class="mv">' +
-            '<button data-act="up"' + (i === 0 ? ' disabled' : '') + ' aria-label="上移">▲</button>' +
-            '<button data-act="down"' + (i === order.length - 1 ? ' disabled' : '') + ' aria-label="下移">▼</button>' +
+            '<button data-act="up"' + (i === 0 ? ' disabled="disabled"' : '') + ' aria-label="上移">▲</button>' +
+            '<button data-act="down"' + (i === order.length - 1 ? ' disabled="disabled"' : '') + ' aria-label="下移">▼</button>' +
           '</div>' +
         '</li>';
       }).join('');
     };
-    $('#listImp').innerHTML = build('impOrder');
-    $('#listTime').innerHTML = build('timeOrder');
+    setHTML($('#listImp'), build('impOrder'));
+    setHTML($('#listTime'), build('timeOrder'));
   }
 
   function toggleTask(id) {
@@ -866,6 +936,7 @@ input{-webkit-appearance:none;appearance:none}
     t.done = !t.done;
     save();
     renderTasks();
+    scheduleTaskRings();
   }
   function moveTask(orderName, id, dir) {
     const arr = S[orderName];
@@ -886,6 +957,7 @@ input{-webkit-appearance:none;appearance:none}
 
   /* ---- 任务编辑弹层 ---- */
   let editingId = null;
+  let addingCol = 'imp';
   function openSheet(sel) {
     $('#sheetMask').classList.add('on');
     $(sel).classList.add('on');
@@ -896,35 +968,63 @@ input{-webkit-appearance:none;appearance:none}
     $$('.sheet').forEach(s => s.classList.remove('on'));
     document.body.style.overflow = '';
   }
-  function openTask(id) {
+  function setMember(orderName, id, on) {
+    const arr = S[orderName];
+    const i = arr.indexOf(id);
+    if (on && i < 0) arr.push(id);
+    if (!on && i >= 0) arr.splice(i, 1);
+  }
+  function openTask(id, col) {
     editingId = id || null;
+    addingCol = col || 'imp';
     const t = id ? findTask(id) : null;
-    $('#sheetTitle').textContent = t ? '编辑任务' : '添加任务';
+    const colName = addingCol === 'time' ? '时间顺序' : '重要程度';
+    $('#sheetTitle').textContent = t ? '编辑任务' : '添加任务 · ' + colName;
+    $('#sheetSub').textContent = t
+      ? '可修改内容、备注、日期时间，以及放进哪一列。'
+      : '这条任务会放进「' + colName + '」；也可以同时勾选另一列。';
     $('#taskText').value = t ? t.text : '';
-    $('#taskTime').value = t && t.time ? t.time : '';
+    $('#taskNote').value = t ? (t.note || '') : '';
+    $('#taskDate').value = t ? (t.date || '') : '';
+    $('#taskTime').value = t ? (t.time || '') : '';
+    $('#inImp').checked = t ? S.impOrder.indexOf(t.id) >= 0 : addingCol === 'imp';
+    $('#inTime').checked = t ? S.timeOrder.indexOf(t.id) >= 0 : addingCol === 'time';
     $('#taskDelete').classList.toggle('hide', !t);
     openSheet('#sheet');
     setTimeout(() => { try { $('#taskText').focus(); } catch (e) {} }, 260);
   }
   function saveTask() {
     const text = $('#taskText').value.trim();
+    const note = $('#taskNote').value.trim();
+    let date = $('#taskDate').value || '';
     const time = $('#taskTime').value || '';
+    const inImp = $('#inImp').checked;
+    const inTime = $('#inTime').checked;
     if (!text) { toast('先写下要做的事'); return; }
+    if (!inImp && !inTime) { toast('至少勾选一列'); return; }
+    if (time && !date) date = dayKey();
+    if (date && !time) { toast('已保存；只填日期不会响铃，需要再选时间'); }
     if (editingId) {
       const t = findTask(editingId);
       if (!t) { closeSheets(); return; }
-      t.text = text; t.time = time;
-      toast('已保存');
+      t.text = text; t.note = note; t.date = date; t.time = time;
+      setMember('impOrder', t.id, inImp);
+      setMember('timeOrder', t.id, inTime);
     } else {
-      const t = { id: 't' + nowMs() + Math.random().toString(36).slice(2, 6), text: text, time: time, done: false, created: nowMs() };
+      const t = {
+        id: 't' + nowMs() + Math.random().toString(36).slice(2, 6),
+        text: text, note: note, date: date, time: time,
+        done: false, created: nowMs()
+      };
       S.tasks.push(t);
-      S.impOrder.push(t.id);
-      S.timeOrder.push(t.id);
-      toast('已添加，用 ▲▼ 调整顺序');
+      if (inImp) S.impOrder.push(t.id);
+      if (inTime) S.timeOrder.push(t.id);
+      toast('已添加到' + (inTime && !inImp ? '「时间顺序」' : inImp && !inTime ? '「重要程度」' : '两列'));
     }
     save();
     closeSheets();
     renderTasks();
+    scheduleTaskRings();
   }
   function deleteTask() {
     if (!editingId) return;
@@ -935,6 +1035,7 @@ input{-webkit-appearance:none;appearance:none}
     save();
     closeSheets();
     renderTasks();
+    scheduleTaskRings();
     toast('已删除');
   }
 
@@ -943,7 +1044,7 @@ input{-webkit-appearance:none;appearance:none}
   function renderMethods() {
     $$('#methodSeg button').forEach(b => b.classList.toggle('on', b.dataset.cat === S.ui.cat));
     const flows = currentFlows();
-    $('#flowList').innerHTML = flows.map(f => {
+    setHTML($('#flowList'), flows.map(f => {
       const marks = Array.isArray(S.methods[f.id]) ? S.methods[f.id] : [];
       const n = f.steps.reduce((a, _, i) => a + (marks[i] ? 1 : 0), 0);
       const pct = Math.round(n / f.steps.length * 100);
@@ -962,7 +1063,7 @@ input{-webkit-appearance:none;appearance:none}
           '<button class="reset" data-reset="' + f.id + '">重置</button>' +
         '</div>' +
       '</section>';
-    }).join('');
+    }).join(''));
     updateTip();
   }
   function updateTip() {
@@ -1047,6 +1148,7 @@ input{-webkit-appearance:none;appearance:none}
     wakeOn();
     keepAliveOn();
     syncIOSMedia();
+    scheduleTimerRing();
   }
   function pauseTimer() {
     if (!S.timer.running) return;
@@ -1055,12 +1157,14 @@ input{-webkit-appearance:none;appearance:none}
     stopTick();
     wakeOff();
     keepAliveOff();
+    cancelTimerRing();
     save();
     renderTimer();
     syncIOSMedia();
   }
   function resetTimer() {
     stopRing();
+    cancelTimerRing();
     S.timer.running = false;
     stopTick();
     wakeOff();
@@ -1076,6 +1180,7 @@ input{-webkit-appearance:none;appearance:none}
   }
   function skipPhase() {
     stopRing();
+    cancelTimerRing();
     S.timer.running = false;
     stopTick();
     wakeOff();
@@ -1099,8 +1204,6 @@ input{-webkit-appearance:none;appearance:none}
     S.timer.remain = 0;
     stopTick();
     wakeOff();
-    keepAliveOff();
-    syncIOSMedia();
 
     if (phase === 'focus') {
       addCheckin();
@@ -1150,10 +1253,10 @@ input{-webkit-appearance:none;appearance:none}
   }
   function renderPresets() {
     const list = [[25, 5], [45, 10], [50, 10], [90, 20], [15, 3]];
-    $('#presetRow').innerHTML = list.map(p =>
+    setHTML($('#presetRow'), list.map(p =>
       '<button data-study="' + p[0] + '" data-rest="' + p[1] + '" class="' +
       (S.timer.study === p[0] && S.timer.rest === p[1] ? 'on' : '') + '">' + p[0] + ' / ' + p[1] + '</button>'
-    ).join('');
+    ).join(''));
   }
 
   /* ================= 打卡 ================= */
@@ -1196,9 +1299,9 @@ input{-webkit-appearance:none;appearance:none}
     const c = checkOf(key);
     const total = checkCount(key);
     $('#todayLabel').textContent = '今日 ' + total + ' 个' + (total > CELLS ? '（目标已达成）' : '');
-    $('#cells').innerHTML = c.cells.map((v, i) =>
+    setHTML($('#cells'), c.cells.map((v, i) =>
       '<button class="cell' + (v ? ' on' : '') + '" data-cell="' + i + '" aria-label="第' + (i + 1) + '个打卡">' + (v ? '🍅' : '') + '</button>'
-    ).join('');
+    ).join(''));
     $('#streak').textContent = streakDays();
 
     const days = [];
@@ -1208,17 +1311,21 @@ input{-webkit-appearance:none;appearance:none}
       days.push({ d: d, n: checkCount(dayKey(d)) });
     }
     const maxN = Math.max(CELLS, ...days.map(x => x.n));
-    $('#weekBars').innerHTML = days.map(x => {
+    setHTML($('#weekBars'), days.map(x => {
       const h = Math.round((x.n / maxN) * 40) + 3;
       const wd = ['日', '一', '二', '三', '四', '五', '六'][x.d.getDay()];
       return '<div class="wcol"><span class="wn">' + (x.n || '') + '</span><div class="bar' + (x.n ? ' on' : '') + '" style="height:' + h + 'px"></div><span class="wl">' + wd + '</span></div>';
-    }).join('');
+    }).join(''));
     save();
   }
 
   /* ================= 提醒铃声 ================= */
   let AC = null, master = null;
-  let ring = { active: false, timer: null, maxTimer: null, cycles: 0, opts: null, autoStopped: false };
+  let ring = { active: false, opts: null, src: null, gain: null, maxTimer: null, autoStopped: false };
+  let ringSchedule = null;   // 预排的番茄钟铃声（用于后台/黑屏）
+  let taskSchedules = [];    // 预排的任务提醒铃声
+  let bgRingsReady = false;
+  const ringBuffers = Object.create(null);
 
   /* iOS 静音键绕过：先播一条极短的静音 HTML5 音频，把 Web Audio 切到媒体通道。
      思路来自 MIT 许可的 iosunmute（Spencer Evans），这里只取通道切换部分。 */
@@ -1263,12 +1370,21 @@ input{-webkit-appearance:none;appearance:none}
   function pauseIOSMedia() {
     if (iosMedia && !iosMedia.paused) { try { iosMedia.pause(); } catch (e) {} }
   }
-  /* 计时中或响铃中保持媒体通道（静音键打开也能听到） */
+  /* 计时中或响铃中保持媒体通道（静音键打开也能听到；后台/黑屏时也尽量不断开） */
   function syncIOSMedia() {
     if (!isIOS()) return;
+    const keepBg = !!S.settings.backgroundRing || !!S.settings.keepAlive;
     const want = (!!S.timer.running || ring.active) &&
-      (document.visibilityState === 'visible' || !!S.settings.keepAlive);
-    if (want) playIOSMedia(); else pauseIOSMedia();
+      (document.visibilityState === 'visible' || keepBg);
+    if (want) {
+      playIOSMedia();
+      if (document.visibilityState === 'hidden' && S.settings.backgroundRing) {
+        const c = audioCtx();
+        if (c) c.resume().catch(() => {});
+      }
+    } else {
+      pauseIOSMedia();
+    }
   }
 
   function audioCtx() {
@@ -1298,88 +1414,145 @@ input{-webkit-appearance:none;appearance:none}
       s.connect(c.destination);
       s.start(0);
     } catch (e) {}
+    /* 页面刚恢复或首次触摸时，补排一次后台铃声 */
+    if (!bgRingsReady) {
+      bgRingsReady = true;
+      scheduleTaskRings();
+      if (S.timer.running) scheduleTimerRing();
+    }
   }
   function masterLevel() { return Math.max(0.05, Math.min(1, S.settings.volume)); }
 
-  function scheduleBell(t, v) {
-    if (!AC) return;
-    [0, 0.5, 1.0].forEach(off => {
-      [1046.5, 1568.0, 2093.0].forEach((f, ni) => {
-        const o = AC.createOscillator(), g = AC.createGain();
-        const st = t + off + ni * 0.012;
-        o.type = ni === 2 ? 'triangle' : 'sine';
-        o.frequency.value = f;
-        g.gain.setValueAtTime(0.0001, st);
-        g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * (ni === 0 ? 0.8 : 0.42)), st + 0.008);
-        g.gain.exponentialRampToValueAtTime(0.0001, st + 0.72);
-        o.connect(g); g.connect(master);
-        o.start(st); o.stop(st + 0.8);
+  /* 生成一段可循环的铃声缓冲（比逐次振荡器更适合后台/锁屏：排进音频线程后不依赖 JS 计时器） */
+  function buildRingBuffer(tone) {
+    const c = audioCtx();
+    if (!c) return null;
+    const key = tone + '@' + c.sampleRate;
+    if (ringBuffers[key]) return ringBuffers[key];
+    const sr = c.sampleRate;
+    const dur = 2.4;
+    const n = Math.floor(sr * dur);
+    const buf = c.createBuffer(1, n, sr);
+    const data = buf.getChannelData(0);
+    const add = (start, freq, amp, decay, harm) => {
+      const s0 = Math.floor(start * sr);
+      const len = Math.min(n - s0, Math.floor(decay * 5 * sr));
+      for (let i = 0; i < len; i++) {
+        const t = i / sr;
+        const env = Math.exp(-t / decay);
+        let v = Math.sin(2 * Math.PI * freq * t);
+        if (harm) v += Math.sin(2 * Math.PI * freq * 2.01 * t) * 0.25 + Math.sin(2 * Math.PI * freq * 3.03 * t) * 0.12;
+        data[s0 + i] += v * amp * env;
+      }
+    };
+    if (tone === 'alarm') {
+      for (let i = 0; i < 7; i++) add(i * 0.16, i % 2 ? 880 : 1320, 0.5, 0.06, false);
+    } else if (tone === 'chime') {
+      [[523.25, 0], [659.25, 0.30], [783.99, 0.60], [1046.5, 0.90]].forEach(p => add(p[1], p[0], 0.45, 1.0, true));
+    } else {
+      [0, 0.55, 1.1].forEach(off => {
+        add(off, 1046.5, 0.62, 0.55, true);
+        add(off, 1568, 0.30, 0.5, false);
+        add(off, 2093, 0.18, 0.4, false);
+        add(off, 196, 0.35, 0.18, false);
       });
-      const o2 = AC.createOscillator(), g2 = AC.createGain();
-      o2.type = 'sine'; o2.frequency.value = 196;
-      g2.gain.setValueAtTime(0.0001, t + off);
-      g2.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * 0.45), t + off + 0.02);
-      g2.gain.exponentialRampToValueAtTime(0.0001, t + off + 0.35);
-      o2.connect(g2); g2.connect(master);
-      o2.start(t + off); o2.stop(t + off + 0.4);
-    });
-  }
-  function scheduleAlarm(t, v) {
-    if (!AC) return;
-    for (let i = 0; i < 6; i++) {
-      const st = t + i * 0.17;
-      const o = AC.createOscillator(), g = AC.createGain();
-      o.type = 'square';
-      o.frequency.value = i % 2 ? 880 : 1320;
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * 0.35), st + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.12);
-      o.connect(g); g.connect(master);
-      o.start(st); o.stop(st + 0.14);
     }
+    let max = 0;
+    for (let i = 0; i < n; i++) { const a = Math.abs(data[i]); if (a > max) max = a; }
+    if (max > 0) { const k = 0.9 / max; for (let i = 0; i < n; i++) data[i] *= k; }
+    const fade = Math.max(1, Math.floor(sr * 0.03));
+    for (let i = 0; i < fade; i++) data[n - 1 - i] *= i / fade;
+    ringBuffers[key] = buf;
+    return buf;
   }
-  function scheduleChime(t, v) {
-    if (!AC) return;
-    [[523.25, 0], [659.25, 0.32], [783.99, 0.64], [1046.5, 0.96]].forEach(pair => {
-      const f = pair[0], off = pair[1];
-      const o = AC.createOscillator(), g = AC.createGain();
-      o.type = 'sine'; o.frequency.value = f;
-      const st = t + off;
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * 0.5), st + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001, st + 1.15);
-      o.connect(g); g.connect(master);
-      o.start(st); o.stop(st + 1.2);
-    });
+  function makeRingSource(startAt, maxMin) {
+    const c = audioCtx();
+    if (!c) return null;
+    const buf = buildRingBuffer(S.settings.tone);
+    if (!buf) return null;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const g = c.createGain();
+    const level = masterLevel();
+    const at = Math.max(c.currentTime + 0.02, startAt);
+    g.gain.setValueAtTime(Math.max(0.03, level * 0.55), at);
+    g.gain.linearRampToValueAtTime(level, at + 45);
+    src.connect(g); g.connect(c.destination);
+    src.start(at);
+    const mm = Number(maxMin);
+    if (mm > 0) { try { src.stop(at + Math.min(60, mm) * 60); } catch (e) {} }
+    return { src: src, g: g, startedAt: at };
   }
-  function scheduleTone(at, v) {
-    const tone = S.settings.tone;
-    if (tone === 'alarm') scheduleAlarm(at, v);
-    else if (tone === 'chime') scheduleChime(at, v);
-    else scheduleBell(at, v);
-  }
-  function startRingSound() {
-    if (!S.settings.ring) return;
+  function scheduleTimerRing() {
+    cancelTimerRing();
+    if (!S.settings.ring || !S.settings.backgroundRing || !S.timer.running) return;
     const c = audioCtx();
     if (!c) return;
     c.resume().catch(() => {});
-    if (master) master.gain.value = masterLevel() * 0.55;
-    ring.cycles = 0;
-    ring.autoStopped = false;
-    const loop = () => {
-      if (!ring.active) return;
-      const c2 = audioCtx();
-      if (!c2) return;
-      if (c2.state === 'suspended') c2.resume().catch(() => {});
-      if (master) {
-        const level = Math.min(1, 0.55 + ring.cycles * 0.06);
-        master.gain.setTargetAtTime(masterLevel() * level, c2.currentTime, 0.05);
+    const delay = Math.max(0, (S.timer.endAt - nowMs()) / 1000);
+    if (delay < 0.05) return;
+    const r = makeRingSource(c.currentTime + delay + 0.05, S.settings.ringMax);
+    if (r) ringSchedule = r;
+    syncIOSMedia();
+  }
+  function cancelTimerRing() {
+    if (!ringSchedule) return;
+    try { ringSchedule.src.stop(); } catch (e) {}
+    try { ringSchedule.src.disconnect(); ringSchedule.g.disconnect(); } catch (e) {}
+    ringSchedule = null;
+  }
+  /* 任务提醒也提前排进音频线程：锁屏/后台时 JS 停了也能响 */
+  function cancelTaskRings() {
+    (taskSchedules || []).forEach(s => {
+      try { s.r.src.stop(); } catch (e) {}
+      try { s.r.src.disconnect(); s.r.g.disconnect(); } catch (e) {}
+    });
+    taskSchedules = [];
+  }
+  function scheduleTaskRings() {
+    if (ring.active) return;
+    cancelTaskRings();
+    if (!S.settings.ring || !S.settings.backgroundRing || !S.settings.taskAlarm) return;
+    const c = audioCtx();
+    if (!c) return;
+    c.resume().catch(() => {});
+    const now = nowMs();
+    S.tasks.forEach(t => {
+      if (t.done || !t.time) return;
+      const at = taskAlarmMs(t);
+      if (!at) return;
+      const delta = (at - now) / 1000;
+      if (delta < 1 || delta > 24 * 3600) return;
+      const key = (t.date || dayKey(new Date(at))) + '|' + t.time + '|' + t.id;
+      if (S.fires[key]) return;
+      const r = makeRingSource(c.currentTime + delta + 0.05, S.settings.ringMax);
+      if (r) taskSchedules.push({ taskId: t.id, at: at, r: r });
+    });
+  }
+  function adoptTaskRing(taskId) {
+    const c = audioCtx();
+    if (!c) return null;
+    const now = c.currentTime;
+    let idx = -1;
+    for (let i = 0; i < taskSchedules.length; i++) {
+      if (taskSchedules[i].taskId === taskId && taskSchedules[i].r.startedAt <= now + 0.8) { idx = i; break; }
+    }
+    if (idx < 0) {
+      for (let i = 0; i < taskSchedules.length; i++) {
+        if (taskSchedules[i].r.startedAt <= now + 0.8) { idx = i; break; }
       }
-      scheduleTone(c2.currentTime + 0.03, 1);
-      ring.cycles++;
-      ring.timer = setTimeout(loop, 1900);
-    };
-    loop();
+    }
+    if (idx < 0) return null;
+    const s = taskSchedules.splice(idx, 1)[0];
+    return s.r;
+  }
+  function beginRingWithSource(r) {
+    if (!r) return;
+    ring.src = r.src;
+    ring.gain = r.g;
+    ring.active = true;
+    ring.autoStopped = false;
     const maxMin = Number(S.settings.ringMax);
     if (maxMin > 0) {
       ring.maxTimer = setTimeout(() => {
@@ -1391,17 +1564,31 @@ input{-webkit-appearance:none;appearance:none}
       }, Math.min(60, maxMin) * 60000);
     }
   }
+  function startRingSound(taskId) {
+    if (!S.settings.ring) return;
+    if (ring.active && ring.src) return;
+    const c = audioCtx();
+    if (!c) return;
+    c.resume().catch(() => {});
+    const now = c.currentTime;
+    let adopted = null;
+    if (ringSchedule && ringSchedule.startedAt <= now + 0.8) {
+      adopted = ringSchedule;
+      ringSchedule = null;
+    } else if (taskId) {
+      adopted = adoptTaskRing(taskId);
+    }
+    if (!adopted) adopted = makeRingSource(now + 0.03, S.settings.ringMax);
+    beginRingWithSource(adopted);
+  }
   function stopRingSound() {
-    if (ring.timer) { clearTimeout(ring.timer); ring.timer = null; }
     if (ring.maxTimer) { clearTimeout(ring.maxTimer); ring.maxTimer = null; }
     ring.active = false;
-    if (AC && master) {
-      try { master.gain.cancelScheduledValues(AC.currentTime); master.gain.setTargetAtTime(0.0001, AC.currentTime, 0.02); } catch (e) {}
-    }
+    if (ring.src) { try { ring.src.stop(); } catch (e) {} try { ring.src.disconnect(); } catch (e) {} ring.src = null; }
+    if (ring.gain) { try { ring.gain.disconnect(); } catch (e) {} ring.gain = null; }
   }
   function showRing(opts) {
     ring.opts = opts;
-    ring.active = true;
     $('#ringTitle').textContent = opts.title || '时间到';
     $('#ringSub').textContent = opts.sub || '';
     $('#ringTip').textContent = '铃声会持续响，直到你手动关闭 · 不震动 · 戴耳机只有你听到';
@@ -1415,8 +1602,8 @@ input{-webkit-appearance:none;appearance:none}
     }
     $('#ringStop').textContent = '关闭铃声';
     $('#ringOverlay').classList.remove('hide');
+    startRingSound(opts.taskId);
     syncIOSMedia();
-    startRingSound();
     unlockAudio();
   }
   function stopRing() {
@@ -1438,24 +1625,43 @@ input{-webkit-appearance:none;appearance:none}
   }
 
   /* ================= 任务到点提醒 ================= */
+  function taskAlarmMs(t) {
+    if (!t.time) return null;
+    const date = t.date || dayKey();
+    const p = date.split('-');
+    const hm = t.time.split(':');
+    if (p.length !== 3 || hm.length !== 2) return null;
+    const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), Number(hm[0]), Number(hm[1]), 0, 0);
+    const ms = d.getTime();
+    return isNaN(ms) ? null : ms;
+  }
   function checkTaskAlarms() {
-    if (!S.settings.taskAlarm) return;
-    const d = new Date();
-    const hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
-    const today = dayKey(d);
-    let dirty = false;
-    Object.keys(S.fires).forEach(k => {
-      if (k.indexOf(today + '|') !== 0) { delete S.fires[k]; dirty = true; }
-    });
+    if (!S.settings.taskAlarm || !S.settings.ring) return;
     if (ring.active) return;
+    const now = nowMs();
+    let dirty = false;
+    const cutoff = dayKey(new Date(now - 3 * 86400000));
+    Object.keys(S.fires).forEach(k => {
+      if (k.slice(0, 10) < cutoff) { delete S.fires[k]; dirty = true; }
+    });
     for (let i = 0; i < S.tasks.length; i++) {
       const t = S.tasks[i];
-      if (t.done || !t.time || t.time !== hm) continue;
-      const fk = today + '|' + t.id;
-      if (S.fires[fk]) continue;
-      S.fires[fk] = 1;
+      if (t.done || !t.time) continue;
+      const at = taskAlarmMs(t);
+      if (!at) continue;
+      const overdue = now - at;
+      if (overdue < 0 || overdue > 2 * 3600000) continue; // 只补响 2 小时内错过的
+      const key = (t.date || dayKey(new Date(at))) + '|' + t.time + '|' + t.id;
+      if (S.fires[key]) continue;
+      S.fires[key] = 1;
       dirty = true;
-      showRing({ title: '任务提醒', sub: t.text, primary: '知道了', onPrimary: null });
+      showRing({
+        title: '任务提醒',
+        sub: t.text + (t.note ? '\n' + t.note : ''),
+        primary: '知道了',
+        onPrimary: null,
+        taskId: t.id
+      });
       break;
     }
     if (dirty) save();
@@ -1486,6 +1692,7 @@ input{-webkit-appearance:none;appearance:none}
     $('#setRounds').value = S.timer.rounds;
     $('#setRing').classList.toggle('on', !!S.settings.ring);
     $('#setTaskAlarm').classList.toggle('on', !!S.settings.taskAlarm);
+    $('#setBgRing').classList.toggle('on', !!S.settings.backgroundRing);
     $('#setWake').classList.toggle('on', !!S.settings.wakeLock);
     $('#setKeepAlive').classList.toggle('on', !!S.settings.keepAlive);
     $('#setVolume').value = Math.round(S.settings.volume * 100);
@@ -1517,7 +1724,17 @@ input{-webkit-appearance:none;appearance:none}
       S.settings[key] = !S.settings[key];
       if (key === 'wakeLock' && !S.settings[key]) wakeOff();
       if (key === 'keepAlive' && !S.settings[key]) keepAliveOff();
-      if (key === 'ring' && !S.settings.ring) { stopRingSound(); }
+      if (key === 'backgroundRing') {
+        if (!S.settings.backgroundRing) { cancelTimerRing(); cancelTaskRings(); }
+        else { if (S.timer.running) scheduleTimerRing(); scheduleTaskRings(); }
+      }
+      if (key === 'ring') {
+        if (!S.settings.ring) { stopRingSound(); cancelTimerRing(); cancelTaskRings(); }
+        else { if (S.timer.running) scheduleTimerRing(); scheduleTaskRings(); }
+      }
+      if (key === 'taskAlarm') {
+        if (S.settings.taskAlarm) scheduleTaskRings(); else cancelTaskRings();
+      }
       save();
       syncSettingsInputs();
       toast((S.settings[key] ? '已开启' : '已关闭') + (extra || ''));
@@ -1554,6 +1771,7 @@ input{-webkit-appearance:none;appearance:none}
         renderMethods();
         renderTimer();
         renderCheckin();
+        scheduleTaskRings();
         toast('导入成功');
       } catch (e) { toast('文件格式不对，导入失败'); }
     };
@@ -1592,7 +1810,8 @@ input{-webkit-appearance:none;appearance:none}
     }));
 
     /* 点列标题放大/还原 */
-    $$('.col-head').forEach(h => h.addEventListener('click', () => {
+    $$('.col-head').forEach(h => h.addEventListener('click', ev => {
+      if (ev.target.closest('.col-add')) return;
       const isImp = h.closest('.col').classList.contains('col-imp');
       const target = isImp ? 'imp' : 'time';
       S.ui.mode = (S.ui.mode === target) ? 'both' : target;
@@ -1602,6 +1821,12 @@ input{-webkit-appearance:none;appearance:none}
 
     /* 任务列表委托 */
     $('#cols').addEventListener('click', ev => {
+      const addBtn = ev.target.closest('.col-add');
+      if (addBtn) {
+        ev.stopPropagation();
+        openTask(null, addBtn.dataset.addCol === 'time' ? 'time' : 'imp');
+        return;
+      }
       const row = ev.target.closest('.trow');
       if (!row) return;
       const id = row.dataset.id;
@@ -1613,7 +1838,6 @@ input{-webkit-appearance:none;appearance:none}
       if (act === 'down') { moveTask(col, id, 1); return; }
       openTask(id);
     });
-    $('#addTaskBtn').addEventListener('click', () => openTask(null));
 
     /* 任务弹层 */
     $('#sheetMask').addEventListener('click', closeSheets);
@@ -1637,15 +1861,20 @@ input{-webkit-appearance:none;appearance:none}
         S.tasks = S.tasks.filter(t => !t.done);
         S.impOrder = S.impOrder.filter(id => keep.indexOf(id) >= 0);
         S.timeOrder = S.timeOrder.filter(id => keep.indexOf(id) >= 0);
-        save(); renderTasks(); closeSheets(); toast('已清空已完成任务');
+        save(); renderTasks(); closeSheets(); scheduleTaskRings(); toast('已清空已完成任务');
       } else if (a === 'clearAll') {
         if (!S.tasks.length) { toast('任务已经是空的'); return; }
         if (!confirm('清空全部任务？不可撤销。')) return;
         S.tasks = []; S.impOrder = []; S.timeOrder = [];
-        save(); renderTasks(); closeSheets(); toast('已清空全部任务');
+        save(); renderTasks(); closeSheets(); scheduleTaskRings(); toast('已清空全部任务');
       } else if (a === 'resetImp' || a === 'resetTime') {
-        const order = S.tasks.slice().sort((x, y) => x.created - y.created).map(t => t.id);
-        if (a === 'resetImp') S.impOrder = order; else S.timeOrder = order;
+        const orderName = a === 'resetImp' ? 'impOrder' : 'timeOrder';
+        const ids = S[orderName].slice();
+        const order = ids.sort((x, y) => {
+          const a1 = findTask(x), b1 = findTask(y);
+          return (a1 ? a1.created : 0) - (b1 ? b1.created : 0);
+        });
+        S[orderName] = order;
         save(); renderTasks(); closeSheets(); toast('已恢复添加顺序');
       }
     });
@@ -1712,6 +1941,7 @@ input{-webkit-appearance:none;appearance:none}
     /* 设置开关 */
     bindSwitch('#setRing', 'ring');
     bindSwitch('#setTaskAlarm', 'taskAlarm');
+    bindSwitch('#setBgRing', 'backgroundRing');
     bindSwitch('#setWake', 'wakeLock');
     bindSwitch('#setKeepAlive', 'keepAlive');
 
@@ -1721,6 +1951,8 @@ input{-webkit-appearance:none;appearance:none}
       save();
       syncSettingsInputs();
       stopRingSound(); ring.active = false; $('#ringOverlay').classList.add('hide');
+      if (S.timer.running) scheduleTimerRing();
+      if (!ring.active) scheduleTaskRings();
       showRing({ title: '试听铃声', sub: '到点时会用这个声音持续响铃', primary: '停止试听', onPrimary: null });
     }));
 
@@ -1728,8 +1960,9 @@ input{-webkit-appearance:none;appearance:none}
     $('#setVolume').addEventListener('input', () => {
       S.settings.volume = Math.max(0.3, Math.min(1, Number($('#setVolume').value) / 100));
       $('#volumeVal').textContent = Math.round(S.settings.volume * 100) + '%';
-      if (master) master.gain.value = masterLevel();
       save();
+      if (S.timer.running) scheduleTimerRing();
+      if (!ring.active) scheduleTaskRings();
     });
 
     /* 最长响铃 */
@@ -1737,6 +1970,8 @@ input{-webkit-appearance:none;appearance:none}
       S.settings.ringMax = clampInt($('#setRingMax').value, 0, 60);
       $('#setRingMax').value = S.settings.ringMax;
       save();
+      if (S.timer.running) scheduleTimerRing();
+      if (!ring.active) scheduleTaskRings();
     });
 
     /* 试听 */
@@ -1769,16 +2004,32 @@ input{-webkit-appearance:none;appearance:none}
       document.addEventListener(ev, unlockAudio, { passive: true });
     });
 
+    /* 输入框失焦：先收起键盘，避免 iPhone 上第一次点按钮只收键盘不触发 */
+    document.addEventListener('pointerdown', ev => {
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && ev.target !== ae) {
+        try { ae.blur(); } catch (e) {}
+      }
+    }, true);
+
     /* 回到前台：恢复计时 / 触发到点提醒 */
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
-        if (!S.settings.keepAlive) { pauseIOSMedia(); keepAliveOff(); }
+        if (bgRingsReady) scheduleTaskRings();
+        if (S.timer.running && S.settings.backgroundRing) {
+          playIOSMedia();
+          const c = audioCtx();
+          if (c) c.resume().catch(() => {});
+        } else if (!S.settings.keepAlive) {
+          pauseIOSMedia();
+        }
         return;
       }
       syncIOSMedia();
       if (S.timer.running) {
         wakeOn();
         keepAliveOn();
+        if (S.settings.backgroundRing && !ringSchedule) scheduleTimerRing();
         const remain = (S.timer.endAt - nowMs()) / 1000;
         if (remain <= 0) { finishPhase(); return; }
         S.timer.remain = remain;
@@ -1786,6 +2037,7 @@ input{-webkit-appearance:none;appearance:none}
         renderTimer();
       }
       checkTaskAlarms();
+      if (!ring.active) scheduleTaskRings();
     });
 
     /* 关闭页面保存 */
