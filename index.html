@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<meta name="app-version" content="4.0.1">
+<meta name="app-version" content="4.0.4">
 <title>反拖延行动手册</title>
 <style>
 :root{
@@ -383,7 +383,8 @@ input{-webkit-appearance:none;appearance:none}
     </section>
   </div>
 
-  <p class="hint">任务永久保存，不会在每天 24:00 自动清空。每列右上角 ＋ 只添加到这一列；点任务可编辑内容、备注、日期时间；▲▼ 上下调换位置；点列标题可以放大这一列。</p>
+  <button class="add-btn" id="addTaskBtn">＋ 添加任务（两列都加）</button>
+  <p class="hint">每列右上角 ＋ 只添加到这一列；下面的按钮一次加到两列。任务永久保存，不会在每天 24:00 自动清空。点任务可编辑内容、备注、日期时间；▲▼ 上下调换位置；点列标题可以放大这一列。</p>
 </main>
 
 <!-- ================= 方法论 ================= -->
@@ -976,19 +977,19 @@ input{-webkit-appearance:none;appearance:none}
   }
   function openTask(id, col) {
     editingId = id || null;
-    addingCol = col || 'imp';
+    addingCol = col || 'both';
     const t = id ? findTask(id) : null;
-    const colName = addingCol === 'time' ? '时间顺序' : '重要程度';
+    const colName = addingCol === 'time' ? '时间顺序' : addingCol === 'both' ? '两列' : '重要程度';
     $('#sheetTitle').textContent = t ? '编辑任务' : '添加任务 · ' + colName;
     $('#sheetSub').textContent = t
       ? '可修改内容、备注、日期时间，以及放进哪一列。'
-      : '这条任务会放进「' + colName + '」；也可以同时勾选另一列。';
+      : '这条任务会放进「' + colName + '」；也可以改下面的勾选。';
     $('#taskText').value = t ? t.text : '';
     $('#taskNote').value = t ? (t.note || '') : '';
     $('#taskDate').value = t ? (t.date || '') : '';
     $('#taskTime').value = t ? (t.time || '') : '';
-    $('#inImp').checked = t ? S.impOrder.indexOf(t.id) >= 0 : addingCol === 'imp';
-    $('#inTime').checked = t ? S.timeOrder.indexOf(t.id) >= 0 : addingCol === 'time';
+    $('#inImp').checked = t ? S.impOrder.indexOf(t.id) >= 0 : (addingCol === 'imp' || addingCol === 'both');
+    $('#inTime').checked = t ? S.timeOrder.indexOf(t.id) >= 0 : (addingCol === 'time' || addingCol === 'both');
     $('#taskDelete').classList.toggle('hide', !t);
     openSheet('#sheet');
     setTimeout(() => { try { $('#taskText').focus(); } catch (e) {} }, 260);
@@ -1523,7 +1524,7 @@ input{-webkit-appearance:none;appearance:none}
       const at = taskAlarmMs(t);
       if (!at) return;
       const delta = (at - now) / 1000;
-      if (delta < 1 || delta > 24 * 3600) return;
+      if (delta < 1 || delta > 72 * 3600) return;
       const key = (t.date || dayKey(new Date(at))) + '|' + t.time + '|' + t.id;
       if (S.fires[key]) return;
       const r = makeRingSource(c.currentTime + delta + 0.05, S.settings.ringMax);
@@ -1838,6 +1839,8 @@ input{-webkit-appearance:none;appearance:none}
       if (act === 'down') { moveTask(col, id, 1); return; }
       openTask(id);
     });
+
+    $('#addTaskBtn').addEventListener('click', () => openTask(null, 'both'));
 
     /* 任务弹层 */
     $('#sheetMask').addEventListener('click', closeSheets);
