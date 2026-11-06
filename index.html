@@ -1531,6 +1531,15 @@ input{-webkit-appearance:none;appearance:none}
       if (r) taskSchedules.push({ taskId: t.id, at: at, r: r });
     });
   }
+  function cancelTaskRingFor(taskId) {
+    for (let i = 0; i < taskSchedules.length; i++) {
+      if (taskSchedules[i].taskId !== taskId) continue;
+      const s = taskSchedules.splice(i, 1)[0];
+      try { s.r.src.stop(); } catch (e) {}
+      try { s.r.src.disconnect(); s.r.g.disconnect(); } catch (e) {}
+      return;
+    }
+  }
   function adoptTaskRing(taskId) {
     const c = audioCtx();
     if (!c) return null;
@@ -1656,6 +1665,7 @@ input{-webkit-appearance:none;appearance:none}
       if (S.fires[key]) continue;
       S.fires[key] = 1;
       dirty = true;
+      cancelTaskRingFor(t.id);
       showRing({
         title: '任务提醒',
         sub: t.text + (t.note ? '\n' + t.note : ''),
