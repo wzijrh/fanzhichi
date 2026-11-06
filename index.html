@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<meta name="app-version" content="4.0.4">
+<meta name="app-version" content="4.0.6">
 <title>反拖延行动手册</title>
 <style>
 :root{
@@ -1149,7 +1149,9 @@ input{-webkit-appearance:none;appearance:none}
     wakeOn();
     keepAliveOn();
     syncIOSMedia();
-    scheduleTimerRing();
+    cancelTimerRing();
+    const usedTimeline = startTimeline(S.timer.remain);
+    if (!usedTimeline) scheduleTimerRing();
   }
   function pauseTimer() {
     if (!S.timer.running) return;
@@ -1158,6 +1160,7 @@ input{-webkit-appearance:none;appearance:none}
     stopTick();
     wakeOff();
     keepAliveOff();
+    stopTimeline();
     cancelTimerRing();
     save();
     renderTimer();
@@ -1165,6 +1168,7 @@ input{-webkit-appearance:none;appearance:none}
   }
   function resetTimer() {
     stopRing();
+    stopTimeline();
     cancelTimerRing();
     S.timer.running = false;
     stopTick();
@@ -1181,6 +1185,7 @@ input{-webkit-appearance:none;appearance:none}
   }
   function skipPhase() {
     stopRing();
+    stopTimeline();
     cancelTimerRing();
     S.timer.running = false;
     stopTick();
@@ -1322,9 +1327,10 @@ input{-webkit-appearance:none;appearance:none}
 
   /* ================= 提醒铃声 ================= */
   let AC = null, master = null;
-  let ring = { active: false, opts: null, src: null, gain: null, maxTimer: null, autoStopped: false };
+  let ring = { active: false, opts: null, src: null, gain: null, maxTimer: null, autoStopped: false, sourceType: null };
   let ringSchedule = null;   // 预排的番茄钟铃声（用于后台/黑屏）
   let taskSchedules = [];    // 预排的任务提醒铃声
+  let bgTimeline = null;     // 后台保底：静音+铃声的长音频（HTMLAudio，锁屏可播）
   let bgRingsReady = false;
   const ringBuffers = Object.create(null);
 
@@ -1419,22 +1425,25 @@ input{-webkit-appearance:none;appearance:none}
     if (!bgRingsReady) {
       bgRingsReady = true;
       scheduleTaskRings();
-      if (S.timer.running) scheduleTimerRing();
+      if (S.timer.running) {
+        const ok = startTimeline(S.timer.remain);
+        if (!ok) scheduleTimerRing();
+      }
+    } else if (S.timer.running) {
+      if (bgTimeline) ensureTimelinePlaying();
+      else if (!ringSchedule) {
+        const ok = startTimeline(S.timer.remain);
+        if (!ok) scheduleTimerRing();
+      }
     }
   }
   function masterLevel() { return Math.max(0.05, Math.min(1, S.settings.volume)); }
 
   /* 生成一段可循环的铃声缓冲（比逐次振荡器更适合后台/锁屏：排进音频线程后不依赖 JS 计时器） */
-  function buildRingBuffer(tone) {
-    const c = audioCtx();
-    if (!c) return null;
-    const key = tone + '@' + c.sampleRate;
-    if (ringBuffers[key]) return ringBuffers[key];
-    const sr = c.sampleRate;
+  function synthPattern(tone, sr) {
     const dur = 2.4;
     const n = Math.floor(sr * dur);
-    const buf = c.createBuffer(1, n, sr);
-    const data = buf.getChannelData(0);
+    const data = new Float32Array(n);
     const add = (start, freq, amp, decay, harm) => {
       const s0 = Math.floor(start * sr);
       const len = Math.min(n - s0, Math.floor(decay * 5 * sr));
@@ -1446,15 +1455,17 @@ input{-webkit-appearance:none;appearance:none}
         data[s0 + i] += v * amp * env;
       }
     };
+    const hi = sr >= 8000;
     if (tone === 'alarm') {
-      for (let i = 0; i < 7; i++) add(i * 0.16, i % 2 ? 880 : 1320, 0.5, 0.06, false);
+      for (let i = 0; i < 7; i++) add(i * 0.16, i % 2 ? (hi ? 880 : 660) : (hi ? 1320 : 990), 0.5, 0.06, false);
     } else if (tone === 'chime') {
-      [[523.25, 0], [659.25, 0.30], [783.99, 0.60], [1046.5, 0.90]].forEach(p => add(p[1], p[0], 0.45, 1.0, true));
+      (hi ? [[523.25, 0], [659.25, 0.30], [783.99, 0.60], [1046.5, 0.90]]
+          : [[392, 0], [523.25, 0.30], [659.25, 0.60], [783.99, 0.90]]).forEach(p => add(p[1], p[0], 0.45, 1.0, true));
     } else {
       [0, 0.55, 1.1].forEach(off => {
-        add(off, 1046.5, 0.62, 0.55, true);
-        add(off, 1568, 0.30, 0.5, false);
-        add(off, 2093, 0.18, 0.4, false);
+        add(off, hi ? 1046.5 : 784, 0.62, 0.55, true);
+        add(off, hi ? 1568 : 1046.5, 0.30, 0.5, false);
+        add(off, hi ? 2093 : 1318.5, 0.18, 0.4, false);
         add(off, 196, 0.35, 0.18, false);
       });
     }
@@ -1463,6 +1474,16 @@ input{-webkit-appearance:none;appearance:none}
     if (max > 0) { const k = 0.9 / max; for (let i = 0; i < n; i++) data[i] *= k; }
     const fade = Math.max(1, Math.floor(sr * 0.03));
     for (let i = 0; i < fade; i++) data[n - 1 - i] *= i / fade;
+    return data;
+  }
+  function buildRingBuffer(tone) {
+    const c = audioCtx();
+    if (!c) return null;
+    const key = tone + '@' + c.sampleRate;
+    if (ringBuffers[key]) return ringBuffers[key];
+    const pat = synthPattern(tone, c.sampleRate);
+    const buf = c.createBuffer(1, pat.length, c.sampleRate);
+    buf.copyToChannel(pat, 0);
     ringBuffers[key] = buf;
     return buf;
   }
@@ -1487,6 +1508,7 @@ input{-webkit-appearance:none;appearance:none}
   }
   function scheduleTimerRing() {
     cancelTimerRing();
+    if (bgTimeline && !bgTimeline.playFailed) return;
     if (!S.settings.ring || !S.settings.backgroundRing || !S.timer.running) return;
     const c = audioCtx();
     if (!c) return;
@@ -1557,11 +1579,104 @@ input{-webkit-appearance:none;appearance:none}
     const s = taskSchedules.splice(idx, 1)[0];
     return s.r;
   }
+  /* ===== 后台保底：把「静音等待 + 到点铃声」提前渲染成一个长音频，用 <audio> 播放。
+   iOS 锁屏/后台时 HTML 音频通常仍在播放，不依赖 JS 计时器。 ===== */
+  function wavTimeline(leadSec, ringMin, tone) {
+    let sr = leadSec > 3600 ? 2000 : 4000;
+    const leadN = Math.max(1, Math.floor(leadSec * sr));
+    const ringN = Math.max(1, Math.floor(ringMin * 60 * sr));
+    const total = leadN + ringN;
+    const buf = new ArrayBuffer(44 + total);
+    const dv = new DataView(buf);
+    const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+    wr(0, 'RIFF'); dv.setUint32(4, 36 + total, true); wr(8, 'WAVE');
+    wr(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, sr, true); dv.setUint32(28, sr, true); dv.setUint16(32, 1, true); dv.setUint16(34, 8, true);
+    wr(36, 'data'); dv.setUint32(40, total, true);
+    const out = new Uint8Array(buf, 44, total);
+    out.fill(128);
+    const pat = synthPattern(tone, sr);
+    const vol = masterLevel();
+    const pb = new Uint8Array(pat.length);
+    for (let i = 0; i < pat.length; i++) {
+      let x = Math.round(128 + pat[i] * 127 * vol);
+      pb[i] = x < 0 ? 0 : x > 255 ? 255 : x;
+    }
+    const patLen = pb.length;
+    for (let i = 0; i < ringN; i += patLen) {
+      out.set(pb.subarray(0, Math.min(patLen, ringN - i)), leadN + i);
+    }
+    return new Blob([buf], { type: 'audio/wav' });
+  }
+  function startTimeline(remainSec) {
+    stopTimeline();
+    if (!S.settings.ring || !S.settings.backgroundRing) return false;
+    try {
+      const ringMin = clampInt(S.settings.ringMax, 0, 60) || 30;
+      const lead = Math.max(1, Math.min(4 * 3600, remainSec));
+      const blob = wavTimeline(lead, ringMin, S.settings.tone);
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement('audio');
+      el.setAttribute('playsinline', '');
+      el.setAttribute('webkit-playsinline', '');
+      el.setAttribute('x-webkit-airplay', 'deny');
+      el.preload = 'auto';
+      el.loop = false;
+      el.volume = 1;
+      el.style.display = 'none';
+      el.src = url;
+      document.body.appendChild(el);
+      const played = el.play();
+      const now = nowMs();
+      bgTimeline = {
+        el: el, url: url, startAt: now,
+        endAt: now + lead * 1000,
+        ringEnd: now + (lead + ringMin * 60) * 1000,
+        active: true, playFailed: false
+      };
+      if (played && played.catch) played.catch(() => {
+        if (bgTimeline && bgTimeline.el === el) {
+          bgTimeline.playFailed = true;
+          scheduleTimerRing();
+        }
+      });
+      el.addEventListener('ended', () => {
+        if (bgTimeline && bgTimeline.el === el && ring.active) {
+          const tip = $('#ringTip');
+          if (tip) tip.textContent = '铃声已自动停止，点下方按钮关闭。';
+        }
+      });
+      return true;
+    } catch (e) {
+      stopTimeline();
+      return false;
+    }
+  }
+  function stopTimeline() {
+    if (!bgTimeline) return;
+    const t = bgTimeline;
+    bgTimeline = null;
+    try { t.el.pause(); } catch (e) {}
+    try { t.el.src = ''; t.el.load(); } catch (e) {}
+    try { t.el.remove(); } catch (e) {}
+    try { URL.revokeObjectURL(t.url); } catch (e) {}
+  }
+  function timelineRinging() {
+    return !!(bgTimeline && !bgTimeline.playFailed && nowMs() >= bgTimeline.endAt - 300);
+  }
+  function ensureTimelinePlaying() {
+    if (!bgTimeline || bgTimeline.playFailed) return;
+    if (nowMs() < bgTimeline.endAt + 1500 && bgTimeline.el.paused) {
+      const p = bgTimeline.el.play();
+      if (p && p.catch) p.catch(() => {});
+    }
+  }
   function beginRingWithSource(r) {
     if (!r) return;
     ring.src = r.src;
     ring.gain = r.g;
     ring.active = true;
+    ring.sourceType = 'webaudio';
     ring.autoStopped = false;
     const maxMin = Number(S.settings.ringMax);
     if (maxMin > 0) {
@@ -1576,6 +1691,21 @@ input{-webkit-appearance:none;appearance:none}
   }
   function startRingSound(taskId) {
     if (!S.settings.ring) return;
+    if (timelineRinging()) {
+      /* 后台长音频已经到点：直接接管它，不再叠加 WebAudio */
+      ring.active = true;
+      ring.autoStopped = false;
+      ring.sourceType = 'timeline';
+      const rest = Math.max(1000, bgTimeline.ringEnd - nowMs() + 800);
+      ring.maxTimer = setTimeout(() => {
+        ring.autoStopped = true;
+        stopRingSound();
+        const tip = $('#ringTip');
+        if (tip) tip.textContent = '铃声已自动停止，点下方按钮关闭。';
+        $('#ringStop').textContent = '关闭提醒';
+      }, rest);
+      return;
+    }
     if (ring.active && ring.src) return;
     const c = audioCtx();
     if (!c) return;
@@ -1593,7 +1723,10 @@ input{-webkit-appearance:none;appearance:none}
   }
   function stopRingSound() {
     if (ring.maxTimer) { clearTimeout(ring.maxTimer); ring.maxTimer = null; }
+    const type = ring.sourceType;
+    ring.sourceType = null;
     ring.active = false;
+    if (type === 'timeline') stopTimeline();
     if (ring.src) { try { ring.src.stop(); } catch (e) {} try { ring.src.disconnect(); } catch (e) {} ring.src = null; }
     if (ring.gain) { try { ring.gain.disconnect(); } catch (e) {} ring.gain = null; }
   }
@@ -1736,12 +1869,24 @@ input{-webkit-appearance:none;appearance:none}
       if (key === 'wakeLock' && !S.settings[key]) wakeOff();
       if (key === 'keepAlive' && !S.settings[key]) keepAliveOff();
       if (key === 'backgroundRing') {
-        if (!S.settings.backgroundRing) { cancelTimerRing(); cancelTaskRings(); }
-        else { if (S.timer.running) scheduleTimerRing(); scheduleTaskRings(); }
+        if (!S.settings.backgroundRing) { stopTimeline(); cancelTimerRing(); cancelTaskRings(); }
+        else {
+          if (S.timer.running) {
+            const ok = startTimeline(S.timer.remain);
+            if (!ok) scheduleTimerRing();
+          }
+          scheduleTaskRings();
+        }
       }
       if (key === 'ring') {
-        if (!S.settings.ring) { stopRingSound(); cancelTimerRing(); cancelTaskRings(); }
-        else { if (S.timer.running) scheduleTimerRing(); scheduleTaskRings(); }
+        if (!S.settings.ring) { stopRingSound(); stopTimeline(); cancelTimerRing(); cancelTaskRings(); }
+        else {
+          if (S.timer.running) {
+            const ok = startTimeline(S.timer.remain);
+            if (!ok) scheduleTimerRing();
+          }
+          scheduleTaskRings();
+        }
       }
       if (key === 'taskAlarm') {
         if (S.settings.taskAlarm) scheduleTaskRings(); else cancelTaskRings();
@@ -1964,7 +2109,11 @@ input{-webkit-appearance:none;appearance:none}
       save();
       syncSettingsInputs();
       stopRingSound(); ring.active = false; $('#ringOverlay').classList.add('hide');
-      if (S.timer.running) scheduleTimerRing();
+      if (S.timer.running) {
+        stopTimeline();
+        const ok = startTimeline(S.timer.remain);
+        if (!ok) scheduleTimerRing();
+      }
       if (!ring.active) scheduleTaskRings();
       showRing({ title: '试听铃声', sub: '到点时会用这个声音持续响铃', primary: '停止试听', onPrimary: null });
     }));
@@ -1983,7 +2132,11 @@ input{-webkit-appearance:none;appearance:none}
       S.settings.ringMax = clampInt($('#setRingMax').value, 0, 60);
       $('#setRingMax').value = S.settings.ringMax;
       save();
-      if (S.timer.running) scheduleTimerRing();
+      if (S.timer.running) {
+        stopTimeline();
+        const ok = startTimeline(S.timer.remain);
+        if (!ok) scheduleTimerRing();
+      }
       if (!ring.active) scheduleTaskRings();
     });
 
@@ -2029,6 +2182,7 @@ input{-webkit-appearance:none;appearance:none}
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         if (bgRingsReady) scheduleTaskRings();
+        ensureTimelinePlaying();
         if (S.timer.running && S.settings.backgroundRing) {
           playIOSMedia();
           const c = audioCtx();
@@ -2039,6 +2193,7 @@ input{-webkit-appearance:none;appearance:none}
         return;
       }
       syncIOSMedia();
+      ensureTimelinePlaying();
       if (S.timer.running) {
         wakeOn();
         keepAliveOn();
